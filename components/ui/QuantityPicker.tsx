@@ -114,6 +114,7 @@ export function QuantityPicker({
             keyboardType="numeric"
             textAlign="center"
             verticalAlign="middle"
+            style={{ color: disabled ? '#d1d5db' : '#111827', includeFontPadding: false }}
             className={clx(
               'h-full w-full !p-0',
               variant === 'default' ? '' : 'text-[1.5rem]',

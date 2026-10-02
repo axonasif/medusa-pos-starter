@@ -10,11 +10,7 @@ export default function RootLoadingScreen() {
   const settings = useSettings();
 
   const isSetupComplete =
-    settings.isSuccess &&
-    !!settings.data &&
-    !!settings.data.sales_channel &&
-    !!settings.data.region &&
-    !!settings.data.stock_location;
+    !!settings.data && !!settings.data.sales_channel && !!settings.data.region && !!settings.data.stock_location;
 
   React.useEffect(() => {
     if (auth.state.status === 'unauthenticated') {
@@ -24,7 +20,7 @@ export default function RootLoadingScreen() {
     }
 
     if (auth.state.status === 'authenticated') {
-      if (settings.isSuccess) {
+      if (settings.isSuccess || isSetupComplete) {
         if (!isSetupComplete) {
           // If settings are not set, redirect to the setup wizard
           router.replace('/setup-wizard');

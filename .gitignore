@@ -37,3 +37,9 @@ yarn-error.*
 *.tsbuildinfo
 
 app-example
+
+# Local Android builds, generated native project, and test artifacts
+.local/
+artifacts/
+android/
+ios/

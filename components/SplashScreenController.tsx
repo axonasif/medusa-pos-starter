@@ -10,10 +10,13 @@ export function SplashScreenController() {
   const settings = useSettings();
 
   React.useEffect(() => {
-    if (auth.state.status !== 'loading' && (!settings.isEnabled || settings.isSuccess)) {
+    if (
+      auth.state.status !== 'loading' &&
+      (!settings.isEnabled || settings.isSuccess || auth.connection === 'reconnecting')
+    ) {
       SplashScreen.hideAsync();
     }
-  }, [auth.state.status, settings.isEnabled, settings.isSuccess]);
+  }, [auth.state.status, auth.connection, settings.isEnabled, settings.isSuccess]);
 
   return null;
 }

@@ -1,7 +1,10 @@
 import { isUnauthorizedError } from '@/utils/errors';
+import { checkServerSession } from '@/utils/server-session';
+import { useQueryClient } from '@tanstack/react-query';
 import Medusa from '@medusajs/js-sdk';
 import * as SecureStore from 'expo-secure-store';
 import * as React from 'react';
+import { AppState } from 'react-native';
 import Toast from 'react-native-toast-message';
 
 export type AuthStateType =
@@ -27,12 +30,14 @@ export type AuthStateType =
 
 export type AuthContextType = {
   state: AuthStateType;
+  connection: 'checking' | 'connected' | 'reconnecting';
   login: (medusaUrl: string, email: string, password: string) => Promise<void>;
   logout: () => Promise<void>;
 };
 
 export const AuthContext = React.createContext<AuthContextType>({
   state: { status: 'loading' },
+  connection: 'checking',
   login: async () => {
     throw new Error('login function not implemented');
   },
@@ -42,6 +47,8 @@ export const AuthContext = React.createContext<AuthContextType>({
 });
 
 export const AuthProvider: React.FC<React.PropsWithChildren> = ({ children }) => {
+  const queryClient = useQueryClient();
+  const [connection, setConnection] = React.useState<AuthContextType['connection']>('checking');
   const [state, setState] = React.useState<AuthStateType>({
     status: 'loading',
   });
@@ -80,6 +87,17 @@ export const AuthProvider: React.FC<React.PropsWithChildren> = ({ children }) =>
         await SecureStore.setItemAsync('medusaUrl', medusaUrl);
         await SecureStore.setItemAsync('userEmail', email);
         await SecureStore.setItemAsync('apiKey', apiKey);
+        await SecureStore.setItemAsync(
+          'sessionUser',
+          JSON.stringify({
+            id: userResponse.user.id,
+            name:
+              [userResponse.user.first_name, userResponse.user.last_name].filter(Boolean).join(' ') ||
+              email.split('@')[0],
+            email: userResponse.user.email,
+          }),
+        );
+        setConnection('connected');
 
         setState({
           status: 'authenticated',
@@ -124,6 +142,7 @@ export const AuthProvider: React.FC<React.PropsWithChildren> = ({ children }) =>
     }
 
     await SecureStore.deleteItemAsync('apiKey');
+    await SecureStore.deleteItemAsync('sessionUser');
     setState({ status: 'unauthenticated' });
   }, [state.status]);
 
@@ -141,40 +160,20 @@ export const AuthProvider: React.FC<React.PropsWithChildren> = ({ children }) =>
         }
 
         if (medusaUrl && apiKey) {
-          const sdk = new Medusa({
-            baseUrl: medusaUrl,
-            debug: false,
-            auth: {
-              type: 'jwt',
-              jwtTokenStorageMethod: 'custom',
-              storage: {
-                getItem: () => apiKey,
-                setItem: () => {},
-                removeItem: () => {},
-              },
-            },
-          });
-
-          if (cancelled) {
-            return;
+          const savedUser = await SecureStore.getItemAsync('sessionUser');
+          let user = { id: '', name: userEmail?.split('@')[0] || 'Cashier', email: userEmail || '' };
+          try {
+            const cached = savedUser ? JSON.parse(savedUser) : null;
+            if (cached?.id && cached?.email && typeof cached.name === 'string') user = cached;
+          } catch {
+            // Older installations may not have a cached user yet.
           }
-
-          const userResponse = await sdk.admin.user.me();
-
-          if (cancelled) {
-            return;
-          }
-
+          if (cancelled) return;
+          setConnection('checking');
           setState({
             status: 'authenticated',
-            user: {
-              id: userResponse.user.id,
-              name:
-                [userResponse.user.first_name, userResponse.user.last_name].filter(Boolean).join(' ') ||
-                userResponse.user.email.split('@')[0],
-              email: userResponse.user.email,
-            },
-            userEmail: userResponse.user.email,
+            user,
+            userEmail: user.email,
             medusaUrl,
             apiKey,
           });
@@ -196,25 +195,8 @@ export const AuthProvider: React.FC<React.PropsWithChildren> = ({ children }) =>
           return;
         }
 
-        await SecureStore.deleteItemAsync('apiKey');
-
-        if (isUnauthorizedError(error)) {
-          Toast.show({
-            type: 'error',
-            text1: 'Session Expired',
-            text2: 'Your session has expired. Please log in again.',
-            visibilityTime: 4000,
-          });
-        } else {
-          console.error('Failed to load auth state:', error);
-          Toast.show({
-            type: 'error',
-            text1: 'Authentication Error',
-            text2: 'Failed to load authentication state. Please try again.',
-            visibilityTime: 4000,
-          });
-        }
-
+        // A secure-storage failure is not evidence that the session expired.
+        console.error('Failed to load saved login:', error);
         setState({ status: 'unauthenticated', medusaUrl: undefined });
       }
     };
@@ -226,7 +208,55 @@ export const AuthProvider: React.FC<React.PropsWithChildren> = ({ children }) =>
     };
   }, []);
 
-  return <AuthContext.Provider value={{ state, login, logout }}>{children}</AuthContext.Provider>;
+  const medusaUrl = state.status === 'authenticated' ? state.medusaUrl : undefined;
+  const apiKey = state.status === 'authenticated' ? state.apiKey : undefined;
+
+  React.useEffect(() => {
+    if (!medusaUrl || !apiKey) return;
+    let cancelled = false;
+    let inFlight = false;
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    let wasConnected = false;
+    const check = async () => {
+      if (cancelled || inFlight || AppState.currentState === 'background') return;
+      if (timer) clearTimeout(timer);
+      inFlight = true;
+      const result = await checkServerSession(medusaUrl, apiKey);
+      inFlight = false;
+      if (cancelled) return;
+      if (result.status === 'expired') {
+        await SecureStore.deleteItemAsync('apiKey');
+        await SecureStore.deleteItemAsync('sessionUser');
+        if (cancelled) return;
+        setState({ status: 'unauthenticated', medusaUrl });
+        Toast.show({ type: 'error', text1: 'Session expired', text2: 'Please sign in again.' });
+        return;
+      }
+      setConnection(result.status);
+      if (result.status === 'connected') {
+        setState((current) =>
+          current.status === 'authenticated' && current.apiKey === apiKey
+            ? { ...current, user: result.user, userEmail: result.user.email }
+            : current,
+        );
+        void SecureStore.setItemAsync('sessionUser', JSON.stringify(result.user)).catch(() => {});
+        if (!wasConnected) void queryClient.invalidateQueries({ refetchType: 'active' });
+      }
+      wasConnected = result.status === 'connected';
+      timer = setTimeout(() => void check(), wasConnected ? 10000 : 5000);
+    };
+    void check();
+    const subscription = AppState.addEventListener('change', (next) => {
+      if (next === 'active') void check();
+    });
+    return () => {
+      cancelled = true;
+      if (timer) clearTimeout(timer);
+      subscription.remove();
+    };
+  }, [medusaUrl, apiKey, queryClient]);
+
+  return <AuthContext.Provider value={{ state, connection, login, logout }}>{children}</AuthContext.Provider>;
 };
 
 export const useAuthCtx = () => {

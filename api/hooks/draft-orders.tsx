@@ -1,6 +1,7 @@
 import { useMedusaSdk } from '@/contexts/auth';
 import { useSettings } from '@/contexts/settings';
 import { showErrorToast } from '@/utils/errors';
+import { completePosSale } from '@/utils/complete-pos-sale';
 import {
   AdminAddDraftOrderItems,
   AdminCustomer,
@@ -51,6 +52,10 @@ const useGetOrSetDraftOrderId = () => {
     const draftOrderId = await SecureStore.getItemAsync(DRAFT_ORDER_ID_STORAGE_KEY);
 
     if (draftOrderId) {
+      const { order } = await sdk.admin.order.retrieve(draftOrderId);
+      if (order.status !== 'draft') {
+        throw new Error('An interrupted checkout needs attention. Open Cart and resume it before adding products.');
+      }
       return draftOrderId;
     }
 
@@ -112,10 +117,11 @@ export const useCurrentDraftOrder = () => {
         return null;
       }
 
-      return sdk.admin.draftOrder.retrieve(draftOrderId, {
+      const { order } = await sdk.admin.order.retrieve(draftOrderId, {
         fields:
           '+tax_total,+discount_total,+subtotal,+total,+items.variant.options.*,+items.variant.options.option.*,+items.variant.inventory_quantity,+customer.*',
       });
+      return { draft_order: order };
     },
   });
 };
@@ -525,7 +531,7 @@ export const useUpdateDraftOrderCustomer = (
 
 export const useCompleteDraftOrder = (
   draftOrderId: string,
-  options?: Omit<UseMutationOptions<void, Error, void, unknown>, 'mutationKey' | 'mutationFn'>,
+  options?: Omit<UseMutationOptions<void, Error, number, unknown>, 'mutationKey' | 'mutationFn'>,
 ) => {
   const sdk = useMedusaSdk();
   const queryClient = useQueryClient();
@@ -533,57 +539,12 @@ export const useCompleteDraftOrder = (
 
   return useMutation({
     mutationKey: ['draft-order', draftOrderId, 'complete'],
-    mutationFn: async () => {
+    mutationFn: async (cashReceivedTotal: number) => {
       if (!draftOrderId) {
         throw new Error('Draft order ID is required to complete the order');
       }
 
-      const { draft_order } = await sdk.admin.draftOrder.retrieve(draftOrderId, {
-        fields:
-          '+tax_total,+discount_total,+subtotal,+total,+items.variant.options.*,+items.variant.options.option.*,+items.variant.inventory_quantity,+customer.*,+customer.addresses.*',
-      });
-
-      const stockLocation = settings.data?.stock_location;
-      const billingAddress =
-        draft_order.customer?.addresses.find(
-          (address) => address.is_default_billing || address.id === draft_order.customer?.default_billing_address_id,
-        ) || draft_order.customer?.addresses[0];
-
-      await sdk.admin.draftOrder.beginEdit(draftOrderId);
-      await sdk.admin.draftOrder.update(draftOrderId, {
-        billing_address: billingAddress
-          ? {
-              first_name: billingAddress.first_name ?? undefined,
-              last_name: billingAddress.last_name ?? undefined,
-              company: billingAddress.company ?? undefined,
-              address_1: billingAddress.address_1 ?? undefined,
-              address_2: billingAddress.address_2 ?? undefined,
-              postal_code: billingAddress.postal_code ?? undefined,
-              city: billingAddress.city ?? undefined,
-              province: billingAddress.province ?? undefined,
-              country_code: billingAddress.country_code ?? undefined,
-              phone: billingAddress.phone ?? undefined,
-            }
-          : undefined,
-        shipping_address: stockLocation
-          ? {
-              company: stockLocation.name,
-              address_1: stockLocation.address?.address_1 ?? undefined,
-              address_2: stockLocation.address?.address_2 ?? undefined,
-              postal_code: stockLocation.address?.postal_code ?? undefined,
-              city: stockLocation.address?.city ?? undefined,
-              province: stockLocation.address?.province ?? undefined,
-              country_code: stockLocation.address?.country_code ?? undefined,
-              phone: stockLocation.address?.phone ?? undefined,
-            }
-          : undefined,
-      });
-      await sdk.admin.draftOrder.confirmEdit(draftOrderId);
-
-      await sdk.admin.draftOrder.convertToOrder(draftOrderId);
-      await sdk.client.fetch(`/admin/orders/${draftOrderId}/complete`, {
-        method: 'POST',
-      });
+      await completePosSale(sdk, draftOrderId, settings.data?.stock_location?.id ?? '', cashReceivedTotal);
       await SecureStore.deleteItemAsync(DRAFT_ORDER_ID_STORAGE_KEY);
     },
     ...options,
@@ -592,6 +553,8 @@ export const useCompleteDraftOrder = (
         queryKey: ['draft-order'],
         exact: false,
       });
+      await queryClient.invalidateQueries({ queryKey: ['products'] });
+      await queryClient.invalidateQueries({ queryKey: ['orders'] });
 
       return options?.onSettled?.(...args);
     },

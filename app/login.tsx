@@ -8,45 +8,7 @@ import { useAuthCtx } from '@/contexts/auth';
 import React, { useState } from 'react';
 import { View } from 'react-native';
 import * as z from 'zod/v4';
-
-const normalizeUrl = (url: string): string => {
-  if (!url) return url;
-  // Remove http:// or https:// if present
-  return url.replace(/^https?:\/\//, '');
-};
-
-const validateMedusaUrl = async (url: string): Promise<boolean> => {
-  try {
-    const normalizedUrl = normalizeUrl(url);
-    if (!normalizedUrl) {
-      console.error('Invalid URL: empty or undefined');
-      return false;
-    }
-
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 5000);
-
-    const response = await fetch(`https://${normalizedUrl}/health`, {
-      method: 'GET',
-      signal: controller.signal,
-      credentials: 'omit',
-    });
-
-    clearTimeout(timeoutId);
-
-    if (!response.ok) {
-      console.error(`Invalid response from Medusa URL: ${response.status}`);
-      console.error('Response body:', await response.text());
-      return false;
-    }
-
-    const text = await response.text();
-    return text.trim().toLowerCase() === 'ok';
-  } catch (error) {
-    console.error('Error validating Medusa URL:', error);
-    return false;
-  }
-};
+import { normalizeUrl, validateMedusaUrl } from '@/utils/validate-medusa-url';
 
 const loginSchema = z.object({
   medusaUrl: z

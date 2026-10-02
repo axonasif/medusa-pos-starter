@@ -51,6 +51,10 @@ export default function SettingsScreen() {
         >
           {settings.data?.stock_location?.name || '—'}
         </Button>
+        <Text className="mb-4 text-2xl">Admin Panel</Text>
+        <Button variant="outline" onPress={() => router.push('/settings/admin-panel')} className="mb-8">
+          Open Admin Panel
+        </Button>
         <Text className="mb-4 text-2xl">Reset</Text>
         <Button
           variant="outline"

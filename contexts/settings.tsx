@@ -1,4 +1,4 @@
-import { showErrorToast } from '@/utils/errors';
+import { isNotFoundError, showErrorToast } from '@/utils/errors';
 import Medusa from '@medusajs/js-sdk';
 import { DefaultError, useMutation, UseMutationOptions, useQuery, useQueryClient } from '@tanstack/react-query';
 import * as SecureStore from 'expo-secure-store';
@@ -46,18 +46,21 @@ export const useSettings = () => {
       const sales_channel_response = sales_channel_id
         ? await sdk.admin.salesChannel.retrieve(sales_channel_id).catch((error) => {
             console.error(error);
+            if (!isNotFoundError(error)) throw error;
             return undefined;
           })
         : undefined;
       const stock_location_response = stock_location_id
         ? await sdk.admin.stockLocation.retrieve(stock_location_id).catch((error) => {
             console.error(error);
+            if (!isNotFoundError(error)) throw error;
             return undefined;
           })
         : undefined;
       const region_response = region_id
         ? await sdk.admin.region.retrieve(region_id).catch((error) => {
             console.error(error);
+            if (!isNotFoundError(error)) throw error;
             return undefined;
           })
         : undefined;

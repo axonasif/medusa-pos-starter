@@ -3,6 +3,7 @@ import { X } from '@/components/icons/x';
 import { Zap } from '@/components/icons/zap';
 import { ZapOff } from '@/components/icons/zap-off';
 import { Text } from '@/components/ui/Text';
+import { barcodeTypes } from '@/utils/barcode-types';
 import { BarcodeScanningResult, Camera, CameraView } from 'expo-camera';
 import * as Haptics from 'expo-haptics';
 import { router, usePathname } from 'expo-router';
@@ -115,7 +116,7 @@ export default function ScanScreen() {
         enableTorch={enableTorch}
         onBarcodeScanned={handleBarcodeScanned}
         barcodeScannerSettings={{
-          barcodeTypes: ['ean13', 'ean8', 'upc_a', 'upc_e', 'code128', 'code93', 'code39'],
+          barcodeTypes,
         }}
         autofocus="on"
         active={pathname === '/scan'}

@@ -14,9 +14,10 @@ import { QueryClient } from '@tanstack/react-query';
 import { PersistQueryClientProvider } from '@tanstack/react-query-persist-client';
 import { Stack } from 'expo-router';
 import * as React from 'react';
+import { Text, View } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { KeyboardProvider } from 'react-native-keyboard-controller';
-import { SafeAreaProvider } from 'react-native-safe-area-context';
+import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 import Toast from 'react-native-toast-message';
 
 const queryClient = new QueryClient({
@@ -36,78 +37,87 @@ function App() {
   const settings = useSettings();
 
   const isSetupComplete =
-    settings.isSuccess &&
-    !!settings.data &&
-    !!settings.data.sales_channel &&
-    !!settings.data.region &&
-    !!settings.data.stock_location;
+    !!settings.data && !!settings.data.sales_channel && !!settings.data.region && !!settings.data.stock_location;
 
   return (
-    <Stack>
-      <Stack.Protected guard={auth.state.status === 'authenticated' && isSetupComplete}>
-        <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+    <View style={{ flex: 1 }}>
+      {auth.state.status === 'authenticated' && auth.connection !== 'connected' && (
+        <SafeAreaView edges={['top']} style={{ backgroundColor: '#b91c1c' }}>
+          <Text
+            accessibilityRole="alert"
+            style={{ color: '#fff', paddingVertical: 8, paddingHorizontal: 16, textAlign: 'center', fontWeight: '600' }}
+          >
+            {auth.connection === 'checking' ? 'Connecting to server…' : 'Server unavailable — Trying to reconnect…'}
+          </Text>
+        </SafeAreaView>
+      )}
+      <Stack>
+        <Stack.Protected guard={auth.state.status === 'authenticated' && isSetupComplete}>
+          <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
 
-        <Stack.Screen name="checkout/[draftOrderId]" options={{ title: 'Checkout', headerShown: false }} />
+          <Stack.Screen name="checkout/[draftOrderId]" options={{ title: 'Checkout', headerShown: false }} />
 
-        <Stack.Screen
-          name="product-details"
-          options={{
-            presentation: 'transparentModal',
-            title: 'Product Details',
-            headerShown: false,
-            animation: 'none',
-            animationDuration: 0,
-            gestureEnabled: false,
-            fullScreenGestureShadowEnabled: false,
-          }}
-        />
-        <Stack.Screen
-          name="orders/[orderId]"
-          options={{
-            presentation: 'transparentModal',
-            title: 'Order Details',
-            headerShown: false,
-            animation: 'none',
-            animationDuration: 0,
-            gestureEnabled: false,
-            fullScreenGestureShadowEnabled: false,
-          }}
-        />
-        <Stack.Screen
-          name="customer-lookup"
-          options={{
-            presentation: 'transparentModal',
-            title: 'Customer Lookup',
-            headerShown: false,
-            animation: 'none',
-          }}
-        />
+          <Stack.Screen
+            name="product-details"
+            options={{
+              presentation: 'transparentModal',
+              title: 'Product Details',
+              headerShown: false,
+              animation: 'none',
+              animationDuration: 0,
+              gestureEnabled: false,
+              fullScreenGestureShadowEnabled: false,
+            }}
+          />
+          <Stack.Screen
+            name="orders/[orderId]"
+            options={{
+              presentation: 'transparentModal',
+              title: 'Order Details',
+              headerShown: false,
+              animation: 'none',
+              animationDuration: 0,
+              gestureEnabled: false,
+              fullScreenGestureShadowEnabled: false,
+            }}
+          />
+          <Stack.Screen
+            name="customer-lookup"
+            options={{
+              presentation: 'transparentModal',
+              title: 'Customer Lookup',
+              headerShown: false,
+              animation: 'none',
+            }}
+          />
 
-        <Stack.Screen name="settings/stock-location" options={{ headerShown: false }} />
+          <Stack.Screen name="settings/stock-location" options={{ headerShown: false }} />
+          <Stack.Screen name="settings/admin-panel" options={{ headerShown: false }} />
 
-        <Stack.Screen name="settings/create-stock-location" options={{ headerShown: false }} />
+          <Stack.Screen name="settings/create-stock-location" options={{ headerShown: false }} />
 
-        <Stack.Screen name="settings/region" options={{ headerShown: false }} />
+          <Stack.Screen name="settings/region" options={{ headerShown: false }} />
 
-        <Stack.Screen name="settings/create-region" options={{ headerShown: false }} />
+          <Stack.Screen name="settings/create-region" options={{ headerShown: false }} />
 
-        <Stack.Screen name="settings/sales-channel" options={{ headerShown: false }} />
+          <Stack.Screen name="settings/sales-channel" options={{ headerShown: false }} />
 
-        <Stack.Screen name="settings/create-sales-channel" options={{ headerShown: false }} />
+          <Stack.Screen name="settings/create-sales-channel" options={{ headerShown: false }} />
 
-        <Stack.Screen name="+not-found" options={{ headerShown: false }} />
-      </Stack.Protected>
+          <Stack.Screen name="+not-found" options={{ headerShown: false }} />
+        </Stack.Protected>
 
-      <Stack.Protected guard={auth.state.status === 'authenticated' && settings.isSuccess && !isSetupComplete}>
-        <Stack.Screen name="setup-wizard" options={{ headerShown: false }} />
-      </Stack.Protected>
+        <Stack.Protected guard={auth.state.status === 'authenticated' && settings.isSuccess && !isSetupComplete}>
+          <Stack.Screen name="setup-wizard" options={{ headerShown: false }} />
+        </Stack.Protected>
 
-      <Stack.Protected guard={auth.state.status === 'unauthenticated'}>
-        <Stack.Screen name="login" options={{ headerShown: false }} />
-      </Stack.Protected>
+        <Stack.Protected guard={auth.state.status === 'unauthenticated'}>
+          <Stack.Screen name="login" options={{ headerShown: false }} />
+        </Stack.Protected>
 
-      <Stack.Screen options={{ headerShown: false }} name="index" />
-    </Stack>
+        <Stack.Screen options={{ headerShown: false }} name="index" />
+      </Stack>
+    </View>
   );
 }
 

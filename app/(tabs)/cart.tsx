@@ -29,13 +29,10 @@ import { QuantityPicker } from '@/components/ui/QuantityPicker';
 import { Text } from '@/components/ui/Text';
 import { useSettings } from '@/contexts/settings';
 import { AdminDraftOrder, AdminOrderLineItem, AdminPromotion } from '@medusajs/types';
-import type { FlashListRef } from '@shopify/flash-list';
-import { FlashList, ListRenderItem } from '@shopify/flash-list';
 import { useIsMutating } from '@tanstack/react-query';
 import { router } from 'expo-router';
 import * as React from 'react';
-import { Image, Pressable, TouchableOpacity, View } from 'react-native';
-import Animated, { SequencedTransition, SlideOutLeft } from 'react-native-reanimated';
+import { FlatList, Image, ListRenderItem, Pressable, TouchableOpacity, View } from 'react-native';
 import { useSafeAreaFrame } from 'react-native-safe-area-context';
 import * as z from 'zod/v4';
 
@@ -53,11 +50,6 @@ type LineItemType =
   | (AdminOrderLineItem & { __type__: 'draft_order_item' })
   | TPromotionItem;
 
-const ItemCell = React.forwardRef<Animated.View>((props, ref) => {
-  return <Animated.View {...props} layout={SequencedTransition} exiting={SlideOutLeft} ref={ref} />;
-});
-ItemCell.displayName = 'ItemCell';
-
 const DraftOrderItem: React.FC<{ item: AdminOrderLineItem; onRemove?: (item: AdminOrderLineItem) => void }> = ({
   item,
   onRemove,
@@ -69,6 +61,7 @@ const DraftOrderItem: React.FC<{ item: AdminOrderLineItem; onRemove?: (item: Adm
 
   return (
     <SwipeableListItem
+      animation={{ type: 'timing', duration: 120 }}
       rightClassName="bg-white"
       rightWidth={80}
       rightContent={
@@ -101,6 +94,7 @@ const DraftOrderItem: React.FC<{ item: AdminOrderLineItem; onRemove?: (item: Adm
             </View>
           )}
           <QuantityPicker
+            key={item.id}
             quantity={item.quantity}
             max={item.variant?.inventory_quantity}
             onQuantityChange={(quantity) =>
@@ -213,7 +207,8 @@ const CustomerBadge: React.FC<{ customer: AdminDraftOrder['customer'] }> = ({ cu
         onPress={() => router.push('/customer-lookup')}
         variant="outline"
         icon={<UserRoundPlus size={20} />}
-        className="mb-6 justify-between"
+        className="min-w-0 flex-1 justify-between px-3"
+        textClassName="text-sm"
       >
         Add Customer
       </Button>
@@ -232,29 +227,35 @@ const CustomerBadge: React.FC<{ customer: AdminDraftOrder['customer'] }> = ({ cu
           },
         });
       }}
-      className="mb-6 flex-row items-center justify-between border-b border-gray-200 pb-6"
+      className="min-w-0 flex-1 flex-row items-center justify-between rounded-xl border border-gray-200 px-3 py-3"
     >
       {customerName.length > 0 ? (
-        <View>
-          <Text className="text-lg">{customerName}</Text>
-          <Text className="text-sm text-gray-300">{customer.email}</Text>
+        <View className="min-w-0 flex-1">
+          <Text numberOfLines={1} className="text-sm">
+            {customerName}
+          </Text>
+          <Text numberOfLines={1} className="text-xs text-gray-400">
+            {customer.email}
+          </Text>
         </View>
       ) : (
-        <View>
-          <Text className="text-sm text-gray-300">Customer</Text>
-          <Text className="text-lg">{customer.email}</Text>
+        <View className="min-w-0 flex-1">
+          <Text className="text-xs text-gray-400">Customer</Text>
+          <Text numberOfLines={1} className="text-sm">
+            {customer.email}
+          </Text>
         </View>
       )}
 
       <View className="flex-row">
-        <View className="p-2">
-          <ChevronDown size={24} />
+        <View className="p-1">
+          <ChevronDown size={16} />
         </View>
         <TouchableOpacity
           onPress={() => updateDraftOrder.mutate(defaultCustomer.data?.pages[0].customers?.[0])}
-          className="p-2"
+          className="p-1"
         >
-          <X size={24} />
+          <X size={16} />
         </TouchableOpacity>
       </View>
     </TouchableOpacity>
@@ -275,9 +276,10 @@ const PromotionBadge: React.FC<PromotionBadgeProps> = ({ onAddPromotion, isAddin
         onPress={() => setIsDialogOpen(true)}
         variant="outline"
         icon={<Tag size={16} />}
-        className="mb-4 justify-between"
+        className="min-w-0 flex-1 justify-between px-3"
+        textClassName="text-sm"
       >
-        Add Promotion
+        Add promotion
       </Button>
 
       <Dialog visible={isDialogOpen} onClose={() => setIsDialogOpen(false)} title="Add Promotion Code">
@@ -313,23 +315,17 @@ const PromotionBadge: React.FC<PromotionBadgeProps> = ({ onAddPromotion, isAddin
   );
 };
 
-const ItemSeparatorComponent = React.forwardRef<Animated.View>((props, ref) => (
-  <Animated.View className="h-hairline bg-gray-200" ref={ref} />
-));
-ItemSeparatorComponent.displayName = 'ItemSeparatorComponent';
+const ItemSeparatorComponent = () => <View className="h-hairline bg-gray-200" />;
 
-const CartSummaryHeader: React.FC<
-  PromotionBadgeProps & {
-    isLoading?: boolean;
-    taxTotal: number;
-    subtotal: number;
-    discountTotal: number;
-    currencyCode?: string;
-  }
-> = ({ onAddPromotion, isAddingPromotion, isLoading, taxTotal, subtotal, discountTotal, currencyCode }) => {
+const CartSummaryHeader: React.FC<{
+  isLoading?: boolean;
+  taxTotal: number;
+  subtotal: number;
+  discountTotal: number;
+  currencyCode?: string;
+}> = ({ isLoading, taxTotal, subtotal, discountTotal, currencyCode }) => {
   return (
-    <Animated.View className="pb-4 pt-6">
-      <PromotionBadge onAddPromotion={onAddPromotion} isAddingPromotion={isAddingPromotion} />
+    <View className="pb-4 pt-6">
       <View className="gap-2">
         <View className="flex-row justify-between">
           <Text className="text-sm text-gray-400">Taxes</Text>
@@ -376,7 +372,7 @@ const CartSummaryHeader: React.FC<
           </View>
         )}
       </View>
-    </Animated.View>
+    </View>
   );
 };
 
@@ -397,14 +393,12 @@ export default function CartScreen() {
   const cancelDraftOrder = useCancelDraftOrder();
   const updateDraftOrderItem = useUpdateDraftOrderItem();
   const isUpdatingDraftOrder = useIsMutating({ mutationKey: ['draft-order'], exact: false });
-  const itemsListRef = React.useRef<FlashListRef<LineItemType>>(null);
 
   const [isDialogVisible, setIsDialogVisible] = React.useState(false);
 
   const onItemRemove = React.useCallback(
     (item: AdminOrderLineItem) => {
       updateDraftOrderItem.mutate({ id: item.id, update: { quantity: 0 } });
-      itemsListRef.current?.prepareForLayoutAnimationRender();
     },
     [updateDraftOrderItem],
   );
@@ -413,7 +407,6 @@ export default function CartScreen() {
     async (promotion: AdminPromotion) => {
       if (promotion.code) {
         await removePromotion.mutateAsync(promotion.code).catch(() => {});
-        itemsListRef.current?.prepareForLayoutAnimationRender();
       }
     },
     [removePromotion],
@@ -423,8 +416,6 @@ export default function CartScreen() {
     () =>
       draftOrder.data ? (
         <CartSummaryHeader
-          onAddPromotion={(code) => addPromotion.mutate(code)}
-          isAddingPromotion={addPromotion.isPending}
           isLoading={draftOrder.isFetching || isUpdatingDraftOrder > 0}
           taxTotal={draftOrder.data.draft_order.tax_total}
           subtotal={draftOrder.data.draft_order.subtotal}
@@ -432,7 +423,7 @@ export default function CartScreen() {
           currencyCode={draftOrder.data.draft_order.region?.currency_code || settings.data?.region?.currency_code}
         />
       ) : null,
-    [addPromotion, draftOrder.data, draftOrder.isFetching, isUpdatingDraftOrder, settings.data?.region?.currency_code],
+    [draftOrder.data, draftOrder.isFetching, isUpdatingDraftOrder, settings.data?.region?.currency_code],
   );
 
   const renderItem = React.useCallback<ListRenderItem<LineItemType>>(
@@ -446,9 +437,9 @@ export default function CartScreen() {
           currencyCode={draftOrder.data?.draft_order.region?.currency_code || settings.data?.region?.currency_code}
         />
       ) : item.__type__ === 'footer' ? (
-        <Animated.View layout={SequencedTransition}>
+        <View>
           {draftOrder.data && (windowDimensions.width < 768 || windowDimensions.height < 900) ? cartSummary : null}
-        </Animated.View>
+        </View>
       ) : null,
     [
       cartSummary,
@@ -462,7 +453,6 @@ export default function CartScreen() {
   );
 
   const keyExtractor = React.useCallback((item: LineItemType) => item.id, []);
-  const getItemType = React.useCallback((item: LineItemType) => item.__type__, []);
 
   if (draftOrder.isLoading || settings.isLoading) {
     return <CartSkeleton />;
@@ -487,6 +477,19 @@ export default function CartScreen() {
             Try Again
           </Button>
         </View>
+      </Layout>
+    );
+  }
+
+  if (draftOrder.data?.draft_order && draftOrder.data.draft_order.status !== 'draft') {
+    const pendingOrderId = draftOrder.data.draft_order.id;
+    return (
+      <Layout className="gap-4 pb-6">
+        <Text className="text-4xl">Finish checkout</Text>
+        <InfoBanner colorScheme="warning">
+          This sale has been placed but checkout may be incomplete. Resume it instead of creating another sale.
+        </InfoBanner>
+        <Button onPress={() => router.push(`/checkout/${pendingOrderId}`)}>Resume Checkout</Button>
       </Layout>
     );
   }
@@ -543,15 +546,19 @@ export default function CartScreen() {
     <>
       <Layout className="pb-6">
         <Text className="mb-6 text-4xl">Cart</Text>
-        <CustomerBadge customer={draftOrder.data.draft_order.customer} />
-        <FlashList
-          ref={itemsListRef}
+        <View className="mb-4 flex-row gap-2">
+          <CustomerBadge customer={draftOrder.data.draft_order.customer} />
+          <PromotionBadge
+            onAddPromotion={(code) => addPromotion.mutate(code)}
+            isAddingPromotion={addPromotion.isPending}
+          />
+        </View>
+        <FlatList
           data={items}
           keyExtractor={keyExtractor}
           renderItem={renderItem}
-          getItemType={getItemType}
           ItemSeparatorComponent={ItemSeparatorComponent}
-          CellRendererComponent={ItemCell}
+          removeClippedSubviews={false}
           showsVerticalScrollIndicator={false}
           keyboardDismissMode="on-drag"
         />

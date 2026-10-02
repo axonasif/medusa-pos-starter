@@ -119,6 +119,7 @@ export default function CheckoutScreen() {
   }
 
   const isDraftOrder = draftOrder.data.status === 'draft';
+  const cashTotal = Number(draftOrder.data.total);
   const customerEmail = draftOrder.data.customer?.email;
   const customerName = [draftOrder.data.customer?.first_name, draftOrder.data.customer?.last_name]
     .filter(Boolean)
@@ -215,28 +216,36 @@ export default function CheckoutScreen() {
           </Text>
         </View>
 
+        {completeOrder.isError && (
+          <InfoBanner className="mb-4" colorScheme="error">
+            Checkout did not finish. Resume this same sale; cash may already be recorded and stock fulfilled. Do not
+            collect cash again or create a replacement order.
+          </InfoBanner>
+        )}
         <View className="pb-safe flex-row gap-2">
           <Button
             variant="outline"
             className="flex-1"
-            onPress={() => router.back()}
+            onPress={() => router.replace('/cart')}
             disabled={!isDraftOrder || completeOrder.isPending}
           >
             Back to Cart
           </Button>
           <Button
             className="flex-1"
-            onPress={() => completeOrder.mutate()}
-            disabled={!isDraftOrder}
+            onPress={() => completeOrder.mutate(cashTotal)}
+            disabled={
+              completeOrder.isPending || completeOrder.isSuccess || !Number.isFinite(cashTotal) || cashTotal < 0
+            }
             isPending={completeOrder.isPending}
           >
-            Complete Order
+            {isDraftOrder ? 'Cash received — Complete sale' : 'Resume cash sale'}
           </Button>
         </View>
       </Layout>
 
       <Dialog
-        visible={!isDraftOrder && pathName === `/checkout/${draftOrderId}`}
+        visible={completeOrder.isSuccess && pathName === `/checkout/${draftOrderId}`}
         showCloseButton={false}
         dismissOnOverlayPress={false}
         onRequestClose={(event) => {
@@ -252,7 +261,7 @@ export default function CheckoutScreen() {
         contentClassName="flex-shrink"
       >
         <InfoBanner colorScheme="success" className="mb-4">
-          The order has been placed successfully. You can track the order status on Orders screen.
+          Cash payment is recorded. Goods are handed over and managed stock has been deducted.
         </InfoBanner>
 
         <Button

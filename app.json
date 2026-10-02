@@ -1,25 +1,26 @@
 {
   "expo": {
-    "name": "agilo-pos",
-    "slug": "agilo-pos",
-    "version": "1.0.0",
+    "name": "Astha POS",
+    "slug": "astha-pos",
+    "version": "1.0.10",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
-    "scheme": "agilopos",
+    "scheme": "asthapos",
     "userInterfaceStyle": "light",
     "newArchEnabled": true,
     "ios": {
-      "bundleIdentifier": "com.agilo.pos",
+      "bundleIdentifier": "com.azzgubi.astha.pos",
       "supportsTablet": true
     },
     "android": {
+      "versionCode": 11,
       "adaptiveIcon": {
         "foregroundImage": "./assets/images/adaptive-icon.png",
         "backgroundColor": "#ffffff"
       },
       "edgeToEdgeEnabled": true,
       "softwareKeyboardLayoutMode": "pan",
-      "package": "com.agilo.pos"
+      "package": "com.azzgubi.astha.pos"
     },
     "web": {
       "bundler": "metro",
@@ -55,21 +56,18 @@
           ]
         }
       ],
-      "expo-web-browser"
+      "expo-web-browser",
+      ["expo-camera", { "recordAudioAndroid": false, "barcodeScannerEnabled": true }]
     ],
     "experiments": {
       "typedRoutes": true
     },
     "extra": {
-      "router": {},
-      "eas": {
-        "projectId": "2c44b68b-5c32-4031-a160-d315e6c399d4"
-      }
+      "router": {}
     },
-    "owner": "agilo-com",
     "runtimeVersion": "1.0.0",
     "updates": {
-      "url": "https://u.expo.dev/2c44b68b-5c32-4031-a160-d315e6c399d4"
+      "enabled": false
     }
   }
 }

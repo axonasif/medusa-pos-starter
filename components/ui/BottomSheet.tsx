@@ -19,6 +19,7 @@ export interface BottomSheetProps extends Pick<ModalProps, 'visible' | 'onReques
   containerClassName?: string;
   contentClassName?: string;
   headerClassName?: string;
+  fullHeight?: boolean;
   onClose?: () => void;
   onOverlayPress?: () => void;
   onCloseIconPress?: (event: GestureResponderEvent) => void;
@@ -34,6 +35,7 @@ export const BottomSheet: React.FC<BottomSheetProps> = ({
   containerClassName,
   contentClassName,
   headerClassName,
+  fullHeight = false,
   onClose,
   onOverlayPress,
   onCloseIconPress,
@@ -193,12 +195,19 @@ export const BottomSheet: React.FC<BottomSheetProps> = ({
             style={[
               {
                 maxHeight: windowDimensions.height - safeAreaInsets.bottom - safeAreaInsets.top - 16,
+                height: fullHeight
+                  ? windowDimensions.height - safeAreaInsets.bottom - safeAreaInsets.top - 16
+                  : undefined,
               },
               sheetStyle,
             ]}
           >
             <View
-              className={clx('w-full shrink grow-0 overflow-hidden rounded-t-2xl bg-white', containerClassName)}
+              className={clx(
+                'w-full overflow-hidden rounded-t-2xl bg-white',
+                fullHeight ? 'flex-1' : 'shrink grow-0',
+                containerClassName,
+              )}
               style={{
                 paddingBottom: keyboard.keyboardShown ? keyboard.keyboardHeight : 0,
               }}
@@ -228,7 +237,7 @@ export const BottomSheet: React.FC<BottomSheetProps> = ({
                 </GestureDetector>
               )}
 
-              <View className={clx('shrink grow-0 px-4', contentClassName)}>
+              <View className={clx('px-4', fullHeight ? 'flex-1' : 'shrink grow-0', contentClassName)}>
                 {typeof children === 'function' ? children({ animateOut }) : children}
               </View>
             </View>
