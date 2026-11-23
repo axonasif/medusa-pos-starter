@@ -9,6 +9,7 @@ import {
   type AdminScanRequest,
 } from '@/utils/admin-barcode-bridge';
 import { router } from 'expo-router';
+import { RefreshCw } from 'lucide-react-native';
 import React from 'react';
 import { ActivityIndicator, Alert, BackHandler, Platform, Pressable, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -144,9 +145,24 @@ export default function AdminPanelScreen() {
   return (
     <SafeAreaView className="flex-1 bg-white">
       <View className="flex-row items-center justify-between border-b border-gray-200 px-4 py-3">
-        <Pressable accessibilityRole="button" disabled={!canGoBack} onPress={() => browser.current?.goBack()}>
-          <Text className={!canGoBack ? 'text-gray-300' : ''}>Back</Text>
-        </Pressable>
+        <View className="flex-row items-center gap-4">
+          <Pressable accessibilityRole="button" disabled={!canGoBack} onPress={() => browser.current?.goBack()}>
+            <Text className={!canGoBack ? 'text-gray-300' : ''}>Back</Text>
+          </Pressable>
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Reload admin page"
+            disabled={bootstrapping.current}
+            hitSlop={10}
+            onPress={() => {
+              setError(null);
+              setLoading(true);
+              browser.current?.reload();
+            }}
+          >
+            <RefreshCw size={22} color={bootstrapping.current ? '#d1d5db' : '#374151'} />
+          </Pressable>
+        </View>
         <Text className="text-xl">Admin Panel</Text>
         <Pressable accessibilityRole="button" onPress={close}>
           <Text>Close</Text>
